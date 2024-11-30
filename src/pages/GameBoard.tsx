@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 interface Question {
   id: number;
@@ -8,6 +9,7 @@ interface Question {
   question: string;
   answer: string;
   revealed: boolean;
+  image?: string;
 }
 
 interface Category {
@@ -26,14 +28,13 @@ const GameBoard = () => {
       id: 1,
       title: "Science",
       questions: [
-        { id: 1, points: 200, question: "What is H2O?", answer: "Water", revealed: false },
-        { id: 2, points: 400, question: "What is the closest planet to the Sun?", answer: "Mercury", revealed: false },
-        { id: 3, points: 600, question: "What is the hardest natural substance?", answer: "Diamond", revealed: false },
-        { id: 4, points: 800, question: "What is the largest organ in the human body?", answer: "Skin", revealed: false },
-        { id: 5, points: 1000, question: "What is absolute zero in Celsius?", answer: "-273.15°C", revealed: false },
+        { id: 1, points: 100, question: "What is H2O?", answer: "Water", revealed: false, image: "https://images.unsplash.com/photo-1514002053755-13baeb4d8ad9" },
+        { id: 2, points: 200, question: "What is the closest planet to the Sun?", answer: "Mercury", revealed: false },
+        { id: 3, points: 300, question: "What is the hardest natural substance?", answer: "Diamond", revealed: false },
+        { id: 4, points: 400, question: "What is the largest organ in the human body?", answer: "Skin", revealed: false },
+        { id: 5, points: 500, question: "What is absolute zero in Celsius?", answer: "-273.15°C", revealed: false },
       ],
     },
-    // Add more categories here
   ]);
 
   const [selectedQuestion, setSelectedQuestion] = useState<Question | null>(null);
@@ -49,7 +50,6 @@ const GameBoard = () => {
       const points = selectedQuestion.points;
       setScore(score + points);
       setSelectedQuestion(null);
-      // Mark question as revealed in the state
     }
   };
 
@@ -92,7 +92,7 @@ const GameBoard = () => {
                 ${selectedQuestion.points}
               </h3>
               <p className="text-xl text-center">{selectedQuestion.question}</p>
-              <div className="flex justify-center gap-4">
+              <div className="flex flex-col items-center gap-4">
                 <Button
                   onClick={() => setSelectedQuestion(null)}
                   className="glass-card hover:bg-primary/20"
@@ -105,6 +105,13 @@ const GameBoard = () => {
                 >
                   Show Answer
                 </Button>
+                {selectedQuestion.image && (
+                  <img 
+                    src={selectedQuestion.image} 
+                    alt="Question visual" 
+                    className="max-w-full h-auto rounded-lg mt-4"
+                  />
+                )}
               </div>
             </div>
           </div>
