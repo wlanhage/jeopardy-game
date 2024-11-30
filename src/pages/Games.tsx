@@ -27,8 +27,7 @@ const Games = () => {
           {mockGames.map((game) => (
             <div
               key={game.id}
-              className="glass-card p-6 space-y-4 cursor-pointer hover:scale-105 transition-transform"
-              onClick={() => navigate(`/games/${game.id}`)}
+              className="glass-card p-6 space-y-4 hover:scale-105 transition-transform"
             >
               <h3 className="text-xl font-semibold">{game.title}</h3>
               <div className="space-y-2">
@@ -39,6 +38,20 @@ const Games = () => {
                   <span>{game.categories} Categories</span>
                   <span>{game.questions} Questions</span>
                 </div>
+              </div>
+              <div className="flex gap-2 pt-4">
+                <Button
+                  onClick={() => navigate(`/games/${game.id}`)}
+                  className="glass-card hover:bg-primary/20 flex-1"
+                >
+                  Play
+                </Button>
+                <Button
+                  onClick={() => navigate(`/games/${game.id}/edit`)}
+                  className="glass-card hover:bg-primary/20 flex-1"
+                >
+                  Edit
+                </Button>
               </div>
             </div>
           ))}
