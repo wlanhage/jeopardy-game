@@ -1,18 +1,39 @@
+// src/pages/Register.tsx
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { supabase } from "@/lib/supabaseClient";
+import { useAuth } from "@/lib/authContext";
 
 const Register = () => {
   const navigate = useNavigate();
+  const { setUser } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [username, setUsername] = useState("");
+  const [error, setError] = useState<string | null>(null);
 
-  const handleRegister = (e: React.FormEvent) => {
+  const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    // TODO: Implement Firebase registration
-    navigate("/games");
+    setError(null);
+
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          username,
+        },
+      },
+    });
+
+    if (error) {
+      setError(error.message);
+    } else {
+      setUser(data.user);
+      navigate("/games");
+    }
   };
 
   return (
@@ -56,6 +77,8 @@ const Register = () => {
               required
             />
           </div>
+
+          {error && <p className="text-red-500">{error}</p>}
 
           <Button type="submit" className="w-full glass-card hover:bg-primary/20">
             Register

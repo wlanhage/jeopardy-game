@@ -1,44 +1,93 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus } from "lucide-react";
+import { Plus, Trash, Edit } from "lucide-react";
 import { toast } from "sonner";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { IoIosArrowDown } from "react-icons/io";
+
+import { supabase } from "@/lib/supabaseClient";
 
 const EditGame = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   
-  const [title, setTitle] = useState("Science Quiz");
-  const [categories, setCategories] = useState([
-    {
-      id: 1,
-      name: "Physics",
-      questions: [
-        { id: 1, question: "What is gravity?", answer: "A force of attraction", points: 100, image: "" },
-        { id: 2, question: "What is inertia?", answer: "Resistance to change", points: 200, image: "" },
-      ],
-    },
-  ]);
-
+  const [title, setTitle] = useState("");
+  const [categories, setCategories] = useState([]);
   const [newQuestion, setNewQuestion] = useState({
     question: "",
     answer: "",
     image: "",
   });
+  const [editingQuestion, setEditingQuestion] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [currentCategoryId, setCurrentCategoryId] = useState(null);
 
-  const addCategory = () => {
-    const newCategory = {
-      id: categories.length + 1,
-      name: "New Category",
-      questions: [],
+  useEffect(() => {
+    const fetchGameDetails = async () => {
+      const { data: game, error: gameError } = await supabase
+        .from('jeopardy_games')
+        .select('name')
+        .eq('id', id)
+        .single();
+
+      if (gameError) {
+        console.error(gameError);
+        return;
+      }
+
+      setTitle(game.name);
+
+      const { data: categories, error: categoriesError } = await supabase
+        .from('categories')
+        .select('id, name, questions(id, question_text, answer, points, picture_url)')
+        .eq('game_id', id);
+
+      if (categoriesError) {
+        console.error(categoriesError);
+        return;
+      }
+
+      setCategories(categories.map(category => ({
+        ...category,
+        questions: category.questions.map(question => ({
+          ...question,
+          question: question.question_text,
+          image: question.picture_url,
+        })),
+      })));
     };
-    setCategories([...categories, newCategory]);
+
+    fetchGameDetails();
+  }, [id]);
+
+  const addCategory = async () => {
+    const { data: category, error } = await supabase
+      .from('categories')
+      .insert([{ name: "New Category", game_id: id }])
+      .single();
+
+    if (error) {
+      console.error(error);
+      return;
+    }
+
+    setCategories([...categories, { ...category, questions: [] }]);
   };
 
-  const updateCategory = (categoryId: number, name: string) => {
+  const updateCategory = async (categoryId: string, name: string) => {
+    const { error } = await supabase
+      .from('categories')
+      .update({ name })
+      .eq('id', categoryId);
+
+    if (error) {
+      console.error(error);
+      return;
+    }
+
     setCategories(
       categories.map((cat) =>
         cat.id === categoryId ? { ...cat, name } : cat
@@ -46,36 +95,65 @@ const EditGame = () => {
     );
   };
 
-  const addQuestionToCategory = (categoryId: number) => {
-    const category = categories.find((cat) => cat.id === categoryId);
-    if (category) {
-      const questionCount = category.questions.length;
-      const newQuestionObj = {
-        id: Date.now(),
-        question: newQuestion.question,
-        answer: newQuestion.answer,
-        points: (questionCount + 1) * 100,
-        image: newQuestion.image,
-      };
-      
-      setCategories(
-        categories.map((cat) =>
-          cat.id === categoryId
-            ? { ...cat, questions: [...cat.questions, newQuestionObj] }
-            : cat
-        )
-      );
-      
-      setNewQuestion({ question: "", answer: "", image: "" });
+  const addQuestionToCategory = async () => {
+    if (!currentCategoryId) {
+      console.error("No category selected");
+      return;
     }
+
+    const { data: question, error } = await supabase
+      .from('questions')
+      .insert([{
+        question_text: newQuestion.question,
+        answer: newQuestion.answer,
+        points: (categories.find(cat => cat.id === currentCategoryId)?.questions.length + 1) * 100,
+        picture_url: newQuestion.image,
+        category_id: currentCategoryId,
+      }])
+      .select()
+      .single();
+
+    if (error) {
+      console.error(error);
+      toast.error("Failed to add question. Please try again.");
+      return;
+    }
+
+    if (!question) {
+      console.error("Failed to add question");
+      toast.error("Failed to add question. Please try again.");
+      return;
+    }
+
+    setCategories(
+      categories.map((cat) =>
+        cat.id === currentCategoryId
+          ? { ...cat, questions: [...cat.questions, { ...question, question: question.question_text, image: question.picture_url }] }
+          : cat
+      )
+    );
+
+    setNewQuestion({ question: "", answer: "", image: "" });
+    setIsModalOpen(false); // Close the modal after saving the question
+    toast.success("Question added successfully!");
   };
 
-  const updateQuestion = (
-    categoryId: number,
-    questionId: number,
+  const updateQuestion = async (
+    categoryId: string,
+    questionId: string,
     field: string,
     value: string | number
   ) => {
+    const { error } = await supabase
+      .from('questions')
+      .update({ [field === 'question' ? 'question_text' : field]: value })
+      .eq('id', questionId);
+
+    if (error) {
+      console.error(error);
+      return;
+    }
+
     setCategories(
       categories.map((cat) =>
         cat.id === categoryId
@@ -88,6 +166,53 @@ const EditGame = () => {
           : cat
       )
     );
+  };
+
+  const deleteQuestion = async (categoryId: string, questionId: string) => {
+    const { error } = await supabase
+      .from('questions')
+      .delete()
+      .eq('id', questionId);
+
+    if (error) {
+      console.error(error);
+      return;
+    }
+
+    setCategories(
+      categories.map((cat) =>
+        cat.id === categoryId
+          ? {
+              ...cat,
+              questions: cat.questions.filter((q) => q.id !== questionId),
+            }
+          : cat
+      )
+    );
+  };
+
+  const deleteCategory = async (categoryId: string) => {
+    const { error: questionsError } = await supabase
+      .from('questions')
+      .delete()
+      .eq('category_id', categoryId);
+
+    if (questionsError) {
+      console.error(questionsError);
+      return;
+    }
+
+    const { error: categoryError } = await supabase
+      .from('categories')
+      .delete()
+      .eq('id', categoryId);
+
+    if (categoryError) {
+      console.error(categoryError);
+      return;
+    }
+
+    setCategories(categories.filter((cat) => cat.id !== categoryId));
   };
 
   const handleSave = () => {
@@ -125,88 +250,58 @@ const EditGame = () => {
           <div className="space-y-6">
             {categories.map((category) => (
               <Collapsible key={category.id} className="glass-card">
-                <CollapsibleTrigger className="w-full">
-                  <div className="flex justify-between items-center p-4">
+                <CollapsibleTrigger className="w-full flex justify-between items-center p-4">
+                  <div className="flex gap-2 w-full items-center">
                     <Input
                       value={category.name}
                       onChange={(e) => updateCategory(category.id, e.target.value)}
                       placeholder="Category Name"
-                      onClick={(e) => e.stopPropagation()}
+                      className="text-lg w-2/3"
                     />
-                    <Dialog>
-                      <DialogTrigger asChild>
-                        <Button
-                          onClick={(e) => e.stopPropagation()}
-                          className="glass-card hover:bg-primary/20"
-                        >
-                          <Plus className="w-4 h-4 mr-2" /> Add Question
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent>
-                        <DialogHeader>
-                          <DialogTitle>Add New Question</DialogTitle>
-                        </DialogHeader>
-                        <div className="space-y-4">
-                          <Input
-                            value={newQuestion.question}
-                            onChange={(e) =>
-                              setNewQuestion({ ...newQuestion, question: e.target.value })
-                            }
-                            placeholder="Question"
-                          />
-                          <Input
-                            value={newQuestion.answer}
-                            onChange={(e) =>
-                              setNewQuestion({ ...newQuestion, answer: e.target.value })
-                            }
-                            placeholder="Answer"
-                          />
-                          <Input
-                            value={newQuestion.image}
-                            onChange={(e) =>
-                              setNewQuestion({ ...newQuestion, image: e.target.value })
-                            }
-                            placeholder="Image URL (optional)"
-                          />
-                          <Button
-                            onClick={() => addQuestionToCategory(category.id)}
-                            className="w-full"
-                          >
-                            Add Question
-                          </Button>
-                        </div>
-                      </DialogContent>
-                    </Dialog>
+                    <IoIosArrowDown
+                      className="transition-transform duration-300"
+                      data-state="closed"
+                      data-state-open="rotate-180"
+                    />
                   </div>
+                  <Button
+                    onClick={() => deleteCategory(category.id)}
+                    className="bg-red-900 hover:bg-red-950 w-1/5"
+                  >
+                    <Trash className="w-4 h-4 mr-2" /> Delete Category
+                  </Button>
                 </CollapsibleTrigger>
 
                 <CollapsibleContent>
                   <div className="space-y-4 p-4">
-                    {category.questions.map((question, index) => (
-                      <Collapsible key={question.id}>
-                        <CollapsibleTrigger className="w-full text-left p-2 hover:bg-primary/10 rounded">
-                          {question.question} (${(index + 1) * 100})
-                        </CollapsibleTrigger>
-                        <CollapsibleContent>
-                          <div className="glass-card p-4 space-y-4 mt-2">
-                            <Input
-                              value={question.answer}
-                              onChange={(e) =>
-                                updateQuestion(category.id, question.id, "answer", e.target.value)
-                              }
-                              placeholder="Answer"
-                            />
-                            <Input
-                              value={question.image || ""}
-                              onChange={(e) =>
-                                updateQuestion(category.id, question.id, "image", e.target.value)
-                              }
-                              placeholder="Image URL (optional)"
-                            />
-                          </div>
-                        </CollapsibleContent>
-                      </Collapsible>
+                    {category.questions.map((question) => (
+                      <div key={question.id} className="flex justify-between items-center">
+                        <span>{question.question}</span>
+                        <div className="flex gap-2">
+                          <Button
+                            onClick={() => setEditingQuestion({ ...question, categoryId: category.id })}
+                            className="glass-card hover:bg-primary/20"
+                          >
+                            <Edit className="w-4 h-4 mr-2" /> Edit
+                          </Button>
+                          <Button
+                            onClick={() => deleteQuestion(category.id, question.id)}
+                            className="bg-red-900 hover:bg-red-950"
+                          >
+                            <Trash className="w-4 h-4 mr-2" /> Delete
+                          </Button>
+                        </div>
+                      </div>
                     ))}
+                    <Button
+                      onClick={() => {
+                        setCurrentCategoryId(category.id);
+                        setIsModalOpen(true);
+                      }}
+                      className="glass-card hover:bg-primary/20"
+                    >
+                      <Plus className="w-4 h-4 mr-2" /> Add Question
+                    </Button>
                   </div>
                 </CollapsibleContent>
               </Collapsible>
@@ -214,6 +309,53 @@ const EditGame = () => {
           </div>
         </div>
       </div>
+
+      {isModalOpen && (
+        <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Add New Question</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <Input
+                value={newQuestion.question}
+                onChange={(e) => setNewQuestion({ ...newQuestion, question: e.target.value })}
+                placeholder="Question"
+                className="glass-card"
+              />
+              <Input
+                value={newQuestion.answer}
+                onChange={(e) => setNewQuestion({ ...newQuestion, answer: e.target.value })}
+                placeholder="Answer"
+                className="glass-card"
+              />
+              <Input
+                value={newQuestion.image}
+                onChange={(e) => setNewQuestion({ ...newQuestion, image: e.target.value })}
+                placeholder="Image URL (optional)"
+                className="glass-card"
+              />
+              <div className="flex justify-end gap-4">
+                <Button
+                  onClick={() => setIsModalOpen(false)}
+                  className="glass-card hover:bg-primary/20"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={async () => {
+                    await addQuestionToCategory();
+                    setIsModalOpen(false); 
+                  }}
+                  className="glass-card hover:bg-primary/20"
+                >
+                  Save
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 };

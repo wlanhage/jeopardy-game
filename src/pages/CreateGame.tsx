@@ -2,11 +2,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { supabase } from "@/lib/supabaseClient";
+import { MdDelete } from "react-icons/md";
 
 const CreateGame = () => {
   const navigate = useNavigate();
   const [title, setTitle] = useState("");
   const [categories, setCategories] = useState<string[]>([""]);
+  const [error, setError] = useState<string | null>(null);
 
   const addCategory = () => {
     setCategories([...categories, ""]);
@@ -18,10 +21,60 @@ const CreateGame = () => {
     setCategories(newCategories);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const deleteCategory = (index: number) => {
+    const newCategories = categories.filter((_, i) => i !== index);
+    setCategories(newCategories);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // TODO: Implement game creation with Firebase
-    navigate("/games");
+    setError(null);
+
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+
+    if (userError) {
+      console.error("Error fetching user:", userError);
+      setError("Error fetching user.");
+      return;
+    }
+
+    if (!user) {
+      console.error("User is not authenticated");
+      setError("User is not authenticated.");
+      return;
+    }
+
+    const { data: game, error: gameError } = await supabase
+      .from('jeopardy_games')
+      .insert([{ name: title, created_by: user.id }])
+      .select()
+      .single();
+
+    if (gameError) {
+      console.error("Error creating game:", gameError);
+      setError("Error creating game.");
+      return;
+    }
+
+    if (!game) {
+      console.error("Failed to create game");
+      setError("Failed to create game.");
+      return;
+    }
+
+    for (const category of categories) {
+      const { error: catError } = await supabase
+        .from('categories')
+        .insert([{ name: category, game_id: game.id }]);
+
+      if (catError) {
+        console.error("Error creating category:", catError);
+        setError("Error creating category.");
+        return;
+      }
+    }
+
+    navigate(`/games/${game.id}/edit`);
   };
 
   return (
@@ -50,14 +103,22 @@ const CreateGame = () => {
             <div className="space-y-4">
               <label className="text-sm font-medium">Categories</label>
               {categories.map((category, index) => (
-                <Input
-                  key={index}
-                  value={category}
-                  onChange={(e) => updateCategory(index, e.target.value)}
-                  className="glass-card"
-                  placeholder={`Category ${index + 1}`}
-                  required
-                />
+                <div key={index} className="flex items-center space-x-2">
+                  <Input
+                    value={category}
+                    onChange={(e) => updateCategory(index, e.target.value)}
+                    className="glass-card flex-1"
+                    placeholder={`Category ${index + 1}`}
+                    required
+                  />
+                  <Button
+                    type="button"
+                    onClick={() => deleteCategory(index)}
+                    className="glass-card hover:bg-primary/20"
+                  >
+                    <MdDelete />
+                  </Button>
+                </div>
               ))}
               {categories.length < 6 && (
                 <Button
@@ -70,6 +131,8 @@ const CreateGame = () => {
               )}
             </div>
           </div>
+
+          {error && <p className="text-red-500">{error}</p>}
 
           <div className="flex justify-end gap-4">
             <Button

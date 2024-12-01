@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -15,36 +16,97 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
+import { supabase } from "@/lib/supabaseClient";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/lib/authContext";
 
 const Admin = () => {
-  // Mock data - replace with actual data fetching
-  const [users] = useState([
-    { id: 1, name: "John Doe", email: "john@example.com", role: "user" },
-    { id: 2, name: "Jane Smith", email: "jane@example.com", role: "admin" },
-    { id: 3, name: "Bob Wilson", email: "bob@example.com", role: "user" },
-  ]);
+  const { user } = useAuth();
+  const [users, setUsers] = useState([]);
+  const [games, setGames] = useState([]);
+  const navigate = useNavigate();
 
-  const [games] = useState([
-    { id: 1, title: "Science Quiz", status: "active" },
-    { id: 2, title: "History Masters", status: "inactive" },
-    { id: 3, title: "Pop Culture", status: "active" },
-  ]);
+  useEffect(() => {
+    const fetchUsers = async () => {
+      const { data, error } = await supabase
+        .from('users')
+        .select('id, username, email, role');
 
-  const handleRoleChange = (userId: number, newRole: string) => {
-    // TODO: Implement role change
-    toast.success(`Updated role for user ${userId} to ${newRole}`);
+      if (error) {
+        console.error(error);
+      } else {
+        setUsers(data);
+      }
+    };
+
+    const fetchGames = async () => {
+      const { data, error } = await supabase
+        .from('jeopardy_games')
+        .select('id, name, status');
+
+      if (error) {
+        console.error(error);
+      } else {
+        setGames(data);
+      }
+    };
+
+    fetchUsers();
+    fetchGames();
+  }, []);
+
+  const handleRoleChange = async (userId: string, newRole: string) => {
+    const { error } = await supabase
+      .from('users')
+      .update({ role: newRole })
+      .eq('id', userId);
+
+    if (error) {
+      console.error(error);
+      toast.error(`Failed to update role for user ${userId}`);
+    } else {
+      const updatedUser = users.find(user => user.id === userId);
+      setUsers(users.map(user => user.id === userId ? { ...user, role: newRole } : user));
+      toast.success(`Updated role for user ${updatedUser?.username} to ${newRole}`);
+    }
   };
 
-  const handleGameStatusChange = (gameId: number, newStatus: string) => {
-    // TODO: Implement status change
-    toast.success(`Updated status for game ${gameId} to ${newStatus}`);
+  const handleGameStatusChange = async (gameId: string, newStatus: string) => {
+    const { error } = await supabase
+      .from('jeopardy_games')
+      .update({ status: newStatus })
+      .eq('id', gameId);
+
+    if (error) {
+      console.error(error);
+      toast.error(`Failed to update status for game ${gameId}`);
+    } else {
+      setGames(games.map(game => game.id === gameId ? { ...game, status: newStatus } : game));
+      toast.success(`Updated status for game ${gameId} to ${newStatus}`);
+    }
   };
+
+  if (user?.role !== 'admin') {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <div className="glass-card w-full max-w-md p-8 space-y-6 text-center">
+          <h2 className="text-2xl font-bold">Authorization Error</h2>
+          <p>Your role does not have authorization for this page. Contact the product owner and return.</p>
+          <Button onClick={() => navigate("/")} className="glass-card hover:bg-primary/20">
+            Return Home
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen p-8">
       <div className="max-w-6xl mx-auto space-y-12 animate-fade-in">
         <div>
           <h2 className="text-3xl font-bold mb-6">User Management</h2>
+          <Button className="glass-card hover:bg-primary/20 flex-1" 
+          onClick={() => navigate("/")}>Home</Button>
           <div className="glass-card">
             <Table>
               <TableHeader>
@@ -57,7 +119,7 @@ const Admin = () => {
               <TableBody>
                 {users.map((user) => (
                   <TableRow key={user.id}>
-                    <TableCell>{user.name}</TableCell>
+                    <TableCell>{user.username}</TableCell>
                     <TableCell>{user.email}</TableCell>
                     <TableCell>
                       <Select
@@ -68,7 +130,7 @@ const Admin = () => {
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="user">User</SelectItem>
+                          <SelectItem value="player">Player</SelectItem>
                           <SelectItem value="admin">Admin</SelectItem>
                         </SelectContent>
                       </Select>
@@ -93,7 +155,7 @@ const Admin = () => {
               <TableBody>
                 {games.map((game) => (
                   <TableRow key={game.id}>
-                    <TableCell>{game.title}</TableCell>
+                    <TableCell>{game.name}</TableCell>
                     <TableCell>
                       <Select
                         defaultValue={game.status}
