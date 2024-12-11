@@ -7,9 +7,32 @@ import { MdDelete } from "react-icons/md";
 
 const CreateGame = () => {
   const navigate = useNavigate();
+  const [user, setUser] = useState(null);
   const [title, setTitle] = useState("");
   const [categories, setCategories] = useState<string[]>([""]);
   const [error, setError] = useState<string | null>(null);
+
+  const fetchUser = async () => {
+    const email = localStorage.getItem("userEmail");
+    if (email) {
+      const { data: userData, error } = await supabase
+        .from('users')
+        .select('id')
+        .eq('email', email)
+        .single();
+
+      if (error) {
+        console.error("Error fetching user:", error);
+        setError("Error fetching user.");
+      } else {
+        setUser(userData);
+      }
+    }
+  };
+
+  useState(() => {
+    fetchUser();
+  });
 
   const addCategory = () => {
     setCategories([...categories, ""]);
@@ -30,16 +53,7 @@ const CreateGame = () => {
     e.preventDefault();
     setError(null);
 
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-
-    if (userError) {
-      console.error("Error fetching user:", userError);
-      setError("Error fetching user.");
-      return;
-    }
-
     if (!user) {
-      console.error("User is not authenticated");
       setError("User is not authenticated.");
       return;
     }
@@ -98,6 +112,12 @@ const CreateGame = () => {
                 placeholder="Enter game title"
                 required
               />
+              
+              <select name="view" id="view" className="text-gray bg-black">
+                <option value="true">Public</option>
+                <option value="false">Private</option>
+                
+              </select>
             </div>
 
             <div className="space-y-4">

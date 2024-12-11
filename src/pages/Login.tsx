@@ -3,9 +3,12 @@ import { Input } from "@/components/ui/input";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabaseClient";
+import bcrypt from 'bcryptjs';
+import { useUser } from "@/context/UserContext";
 
 const Login = () => {
   const navigate = useNavigate();
+  const { setUser } = useUser();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -14,16 +17,30 @@ const Login = () => {
     e.preventDefault();
     setError(null);
 
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    // Fetch the user from the custom users table
+    const { data: userData, error: userError } = await supabase
+      .from('users')
+      .select('id, username, password_hash, role')
+      .eq('email', email)
+      .single();
 
-    if (error) {
-      setError(error.message);
-    } else {
-      navigate("/games");
+    if (userError || !userData) {
+      setError("Invalid email or password.");
+      return;
     }
+
+    // Compare the provided password with the stored password hash
+    const isPasswordValid = await bcrypt.compare(password, userData.password_hash);
+
+    if (!isPasswordValid) {
+      setError("Invalid email or password.");
+      return;
+    }
+
+    // Set the user in the context
+    setUser(userData);
+    localStorage.setItem("userEmail", email);
+    navigate('/games');
   };
 
   return (

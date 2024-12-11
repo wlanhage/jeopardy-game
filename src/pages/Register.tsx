@@ -1,14 +1,14 @@
-// src/pages/Register.tsx
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabaseClient";
-import { useAuth } from "@/lib/authContext";
+import bcrypt from 'bcryptjs';
+import { useUser } from "@/context/UserContext";
 
 const Register = () => {
   const navigate = useNavigate();
-  const { setUser } = useAuth();
+  const { setUser } = useUser();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [username, setUsername] = useState("");
@@ -18,21 +18,23 @@ const Register = () => {
     e.preventDefault();
     setError(null);
 
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          username,
-        },
-      },
-    });
+    // Hash the password
+    const passwordHash = await bcrypt.hash(password, 10);
+
+    // Insert the user into the custom users table
+    const { data, error } = await supabase
+      .from('users')
+      .insert([{ email, username, password_hash: passwordHash }])
+      .select()
+      .single();
 
     if (error) {
       setError(error.message);
     } else {
-      setUser(data.user);
-      navigate("/games");
+      // Set the user in the context
+      setUser(data);
+      localStorage.setItem("userEmail", email);
+      navigate('/games');
     }
   };
 

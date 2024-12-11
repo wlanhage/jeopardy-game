@@ -1,18 +1,17 @@
-// src/main.tsx
 import React from "react";
 import ReactDOM from "react-dom";
 import { BrowserRouter } from "react-router-dom";
-import { AuthProvider } from "@/lib/authContext";
 import App from "./App";
 import "./index.css";
+import { UserProvider } from "@/context/UserContext";
 
 ReactDOM.render(
   <React.StrictMode>
-    <AuthProvider>
+    <UserProvider>
       <BrowserRouter>
         <App />
       </BrowserRouter>
-    </AuthProvider>
+    </UserProvider>
   </React.StrictMode>,
   document.getElementById("root")
 );

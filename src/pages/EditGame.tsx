@@ -251,46 +251,54 @@ const EditGame = () => {
             {categories.map((category) => (
               <Collapsible key={category.id} className="glass-card">
                 <CollapsibleTrigger className="w-full flex justify-between items-center p-4">
-                  <div className="flex gap-2 w-full items-center">
-                    <Input
-                      value={category.name}
-                      onChange={(e) => updateCategory(category.id, e.target.value)}
-                      placeholder="Category Name"
-                      className="text-lg w-2/3"
-                    />
-                    <IoIosArrowDown
-                      className="transition-transform duration-300"
-                      data-state="closed"
-                      data-state-open="rotate-180"
-                    />
+                  <div className="flex gap-2 w-full items-center justify-between">
+                    <div className="flex gap-2 items-center w-full">
+                      <Input
+                        value={category.name}
+                        onChange={(e) => updateCategory(category.id, e.target.value)}
+                        placeholder="Category Name"
+                        className="text-lg w-2/3"
+                      />
+                      <IoIosArrowDown
+                        className="transition-transform duration-300"
+                      />
+                    </div>
+                    <Button
+                      onClick={() => deleteCategory(category.id)}
+                      className="glass-card hover:bg-primary/20"
+                    >
+                      <Trash className="w-4 h-4" />
+                    </Button>
                   </div>
-                  <Button
-                    onClick={() => deleteCategory(category.id)}
-                    className="bg-red-900 hover:bg-red-950 w-1/5"
-                  >
-                    <Trash className="w-4 h-4 mr-2" /> Delete Category
-                  </Button>
                 </CollapsibleTrigger>
-
                 <CollapsibleContent>
                   <div className="space-y-4 p-4">
                     {category.questions.map((question) => (
-                      <div key={question.id} className="flex justify-between items-center">
-                        <span>{question.question}</span>
-                        <div className="flex gap-2">
-                          <Button
-                            onClick={() => setEditingQuestion({ ...question, categoryId: category.id })}
-                            className="glass-card hover:bg-primary/20"
-                          >
-                            <Edit className="w-4 h-4 mr-2" /> Edit
-                          </Button>
-                          <Button
-                            onClick={() => deleteQuestion(category.id, question.id)}
-                            className="bg-red-900 hover:bg-red-950"
-                          >
-                            <Trash className="w-4 h-4 mr-2" /> Delete
-                          </Button>
-                        </div>
+                      <div key={question.id} className="flex gap-2 items-center">
+                        <Input
+                          value={question.question}
+                          onChange={(e) => updateQuestion(category.id, question.id, 'question', e.target.value)}
+                          placeholder="Question"
+                          className="flex-1"
+                        />
+                        <Input
+                          value={question.answer}
+                          onChange={(e) => updateQuestion(category.id, question.id, 'answer', e.target.value)}
+                          placeholder="Answer"
+                          className="flex-1"
+                        />
+                        <Input
+                          value={question.image}
+                          onChange={(e) => updateQuestion(category.id, question.id, 'image', e.target.value)}
+                          placeholder="Image URL"
+                          className="flex-1"
+                        />
+                        <Button
+                          onClick={() => deleteQuestion(category.id, question.id)}
+                          className="glass-card hover:bg-primary/20"
+                        >
+                          <Trash className="w-4 h-4" />
+                        </Button>
                       </div>
                     ))}
                     <Button
@@ -308,54 +316,51 @@ const EditGame = () => {
             ))}
           </div>
         </div>
-      </div>
 
-      {isModalOpen && (
-        <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Add New Question</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              <Input
-                value={newQuestion.question}
-                onChange={(e) => setNewQuestion({ ...newQuestion, question: e.target.value })}
-                placeholder="Question"
-                className="glass-card"
-              />
-              <Input
-                value={newQuestion.answer}
-                onChange={(e) => setNewQuestion({ ...newQuestion, answer: e.target.value })}
-                placeholder="Answer"
-                className="glass-card"
-              />
-              <Input
-                value={newQuestion.image}
-                onChange={(e) => setNewQuestion({ ...newQuestion, image: e.target.value })}
-                placeholder="Image URL (optional)"
-                className="glass-card"
-              />
-              <div className="flex justify-end gap-4">
-                <Button
-                  onClick={() => setIsModalOpen(false)}
-                  className="glass-card hover:bg-primary/20"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  onClick={async () => {
-                    await addQuestionToCategory();
-                    setIsModalOpen(false); 
-                  }}
-                  className="glass-card hover:bg-primary/20"
-                >
-                  Save
-                </Button>
+        {isModalOpen && (
+          <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Add New Question</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <Input
+                  value={newQuestion.question}
+                  onChange={(e) => setNewQuestion({ ...newQuestion, question: e.target.value })}
+                  placeholder="Question"
+                  className="flex-1"
+                />
+                <Input
+                  value={newQuestion.answer}
+                  onChange={(e) => setNewQuestion({ ...newQuestion, answer: e.target.value })}
+                  placeholder="Answer"
+                  className="flex-1"
+                />
+                <Input
+                  value={newQuestion.image}
+                  onChange={(e) => setNewQuestion({ ...newQuestion, image: e.target.value })}
+                  placeholder="Image URL"
+                  className="flex-1"
+                />
+                <div className="flex justify-end gap-4">
+                  <Button
+                    onClick={() => setIsModalOpen(false)}
+                    className="glass-card hover:bg-primary/20"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={addQuestionToCategory}
+                    className="glass-card hover:bg-primary/20"
+                  >
+                    Add
+                  </Button>
+                </div>
               </div>
-            </div>
-          </DialogContent>
-        </Dialog>
-      )}
+            </DialogContent>
+          </Dialog>
+        )}
+      </div>
     </div>
   );
 };
