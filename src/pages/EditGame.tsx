@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Trash, Edit } from "lucide-react";
+import { Plus, Trash, Image } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -20,8 +20,8 @@ const EditGame = () => {
     question: "",
     answer: "",
     image: "",
+    imageFile: null,
   });
-  const [editingQuestion, setEditingQuestion] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentCategoryId, setCurrentCategoryId] = useState(null);
 
@@ -74,7 +74,9 @@ const EditGame = () => {
       return;
     }
 
-    setCategories([...categories, { ...category, questions: [] }]);
+    if (category) {
+      setCategories([...categories, { ...category, questions: [] }]);
+    }
   };
 
   const updateCategory = async (categoryId: string, name: string) => {
@@ -101,13 +103,21 @@ const EditGame = () => {
       return;
     }
 
+    let imageUrl = newQuestion.image;
+    if (newQuestion.imageFile) {
+      imageUrl = await uploadImage(newQuestion.imageFile);
+      if (!imageUrl) {
+        return;
+      }
+    }
+
     const { data: question, error } = await supabase
       .from('questions')
       .insert([{
         question_text: newQuestion.question,
         answer: newQuestion.answer,
         points: (categories.find(cat => cat.id === currentCategoryId)?.questions.length + 1) * 100,
-        picture_url: newQuestion.image,
+        picture_url: imageUrl,
         category_id: currentCategoryId,
       }])
       .select()
@@ -133,8 +143,8 @@ const EditGame = () => {
       )
     );
 
-    setNewQuestion({ question: "", answer: "", image: "" });
-    setIsModalOpen(false); // Close the modal after saving the question
+    setNewQuestion({ question: "", answer: "", image: "", imageFile: null });
+    setIsModalOpen(false); 
     toast.success("Question added successfully!");
   };
 
@@ -215,9 +225,47 @@ const EditGame = () => {
     setCategories(categories.filter((cat) => cat.id !== categoryId));
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    for (const category of categories) {
+      for (const question of category.questions) {
+        if (question.imageFile) {
+          const imageUrl = await uploadImage(question.imageFile);
+          if (imageUrl) {
+            await updateQuestion(category.id, question.id, 'picture_url', imageUrl);
+          }
+        }
+      }
+    }
+
     toast.success("Game updated successfully!");
     navigate("/games");
+  };
+
+  const uploadImage = async (file: File) => {
+    const fileName = `${Date.now()}_${file.name}`;
+    const { data, error } = await supabase.storage
+      .from('questionImages')
+      .upload(fileName, file);
+  
+    if (error) {
+      console.error('Error uploading image:', error);
+      toast.error('Failed to upload image. Please try again.');
+      return null;
+    } else { 
+      console.log('Image uploaded successfully!'); 
+    }
+  
+    const { data: publicUrlData, error: publicUrlError } = supabase.storage
+      .from('questionImages')
+      .getPublicUrl(fileName);
+  
+    if (publicUrlError) {
+      console.error('Error getting public URL:', publicUrlError);
+      toast.error('Failed to get image URL. Please try again.');
+      return null;
+    }
+  
+    return publicUrlData.publicUrl;
   };
 
   return (
@@ -236,6 +284,7 @@ const EditGame = () => {
         </div>
 
         <div className="glass-card p-8 space-y-8">
+          <h2 className="text-3xl">Game title</h2>
           <Input
             value={title}
             onChange={(e) => setTitle(e.target.value)}
@@ -260,12 +309,14 @@ const EditGame = () => {
                         className="text-lg w-2/3"
                       />
                       <IoIosArrowDown
-                        className="transition-transform duration-300"
+                        className="transition-transform duration-300 data-[state=open]:rotate-180"
+                        size={26}
+                        color="black"
                       />
                     </div>
                     <Button
                       onClick={() => deleteCategory(category.id)}
-                      className="glass-card hover:bg-primary/20"
+                      className="glass-card bg-red-800 hover:bg-red-500"
                     >
                       <Trash className="w-4 h-4" />
                     </Button>
@@ -279,23 +330,24 @@ const EditGame = () => {
                           value={question.question}
                           onChange={(e) => updateQuestion(category.id, question.id, 'question', e.target.value)}
                           placeholder="Question"
-                          className="flex-1"
+                          className="w-1/3"
                         />
                         <Input
                           value={question.answer}
                           onChange={(e) => updateQuestion(category.id, question.id, 'answer', e.target.value)}
                           placeholder="Answer"
-                          className="flex-1"
+                          className="w-1/3"
                         />
-                        <Input
-                          value={question.image}
-                          onChange={(e) => updateQuestion(category.id, question.id, 'image', e.target.value)}
-                          placeholder="Image URL"
-                          className="flex-1"
-                        />
+                        <div className="w-1/5 text-black">
+                          {question.points} points
+                        </div>
+                        <div className="w-1/5 text-black flex gap-2">
+                          <Image />
+                          {question.picture_url ? question.picture_url.slice(-10) : " No image"}
+                        </div>
                         <Button
                           onClick={() => deleteQuestion(category.id, question.id)}
-                          className="glass-card hover:bg-primary/20"
+                          className="glass-card bg-red-800 hover:bg-red-500"
                         >
                           <Trash className="w-4 h-4" />
                         </Button>
@@ -337,9 +389,13 @@ const EditGame = () => {
                   className="flex-1"
                 />
                 <Input
-                  value={newQuestion.image}
-                  onChange={(e) => setNewQuestion({ ...newQuestion, image: e.target.value })}
-                  placeholder="Image URL"
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    if (e.target.files && e.target.files[0]) {
+                      setNewQuestion({ ...newQuestion, imageFile: e.target.files[0] });
+                    }
+                  }}
                   className="flex-1"
                 />
                 <div className="flex justify-end gap-4">

@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabaseClient";
 import { MdDelete } from "react-icons/md";
@@ -10,29 +10,30 @@ const CreateGame = () => {
   const [user, setUser] = useState(null);
   const [title, setTitle] = useState("");
   const [categories, setCategories] = useState<string[]>([""]);
+  const [view, setView] = useState(true); // Add state for view
   const [error, setError] = useState<string | null>(null);
 
-  const fetchUser = async () => {
-    const email = localStorage.getItem("userEmail");
-    if (email) {
-      const { data: userData, error } = await supabase
-        .from('users')
-        .select('id')
-        .eq('email', email)
-        .single();
+  useEffect(() => {
+    const fetchUser = async () => {
+      const email = localStorage.getItem("userEmail");
+      if (email) {
+        const { data: userData, error } = await supabase
+          .from('users')
+          .select('id')
+          .eq('email', email)
+          .single();
 
-      if (error) {
-        console.error("Error fetching user:", error);
-        setError("Error fetching user.");
-      } else {
-        setUser(userData);
+        if (error) {
+          console.error("Error fetching user:", error);
+          setError("Error fetching user.");
+        } else {
+          setUser(userData);
+        }
       }
-    }
-  };
+    };
 
-  useState(() => {
     fetchUser();
-  });
+  }, []);
 
   const addCategory = () => {
     setCategories([...categories, ""]);
@@ -60,7 +61,7 @@ const CreateGame = () => {
 
     const { data: game, error: gameError } = await supabase
       .from('jeopardy_games')
-      .insert([{ name: title, created_by: user.id }])
+      .insert([{ name: title, created_by: user.id, view }]) // Use the view state
       .select()
       .single();
 
@@ -113,10 +114,15 @@ const CreateGame = () => {
                 required
               />
               
-              <select name="view" id="view" className="text-gray bg-black">
+              <select
+                name="view"
+                id="view"
+                className="text-gray bg-black"
+                value={view ? "true" : "false"}
+                onChange={(e) => setView(e.target.value === "true")} // Update state on change
+              >
                 <option value="true">Public</option>
                 <option value="false">Private</option>
-                
               </select>
             </div>
 

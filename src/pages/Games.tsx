@@ -9,10 +9,32 @@ import { useUser } from "@/context/UserContext";
 
 const Games = () => {
   const navigate = useNavigate();
-  const { user } = useUser();
+  const { user, setUser } = useUser();
   const [games, setGames] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedGame, setSelectedGame] = useState(null);
+  const [showAllGames, setShowAllGames] = useState(false);
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      const email = localStorage.getItem("userEmail");
+      if (email) {
+        const { data: userData, error } = await supabase
+          .from('users')
+          .select('id, username, role')
+          .eq('email', email)
+          .single();
+
+        if (error) {
+          console.error("Error fetching user role:", error);
+        } else {
+          setUser(userData);
+        }
+      }
+    };
+
+    fetchUser();
+  }, [setUser]);
 
   useEffect(() => {
     const fetchGames = async () => {
@@ -22,6 +44,7 @@ const Games = () => {
           id,
           name,
           created_by,
+          view,
           categories (
             id,
             questions!category_id (
@@ -31,13 +54,13 @@ const Games = () => {
         `);
 
       if (error) {
-        console.error(error);
+        console.error("Error fetching games:", error);
       } else {
         const gamesWithUserDetails = await Promise.all(
           data.map(async (game) => {
             const { data: userData, error: userError } = await supabase
               .from('users')
-              .select('id, email, username')
+              .select('id, email, username, role')
               .eq('id', game.created_by)
               .single();
 
@@ -85,6 +108,20 @@ const Games = () => {
     setIsModalOpen(true);
   };
 
+  if (!user) {
+    return <div>Loading...</div>;
+  }
+
+  const filteredGames = games.filter(game => {
+    if (user.role === 'admin' && showAllGames) {
+      return true;
+    }
+    if (game.view) {
+      return true;
+    }
+    return game.created_by.id === user.id;
+  });
+
   return (
     <div className="min-h-screen p-8">
       <div className="max-w-6xl mx-auto space-y-8 animate-fade-in">
@@ -102,16 +139,24 @@ const Games = () => {
           >
             Create New Game
           </Button>
+          {user.role === 'admin' && (
+            <Button
+              onClick={() => setShowAllGames(!showAllGames)}
+              className="glass-card hover:bg-primary/20"
+            >
+              {showAllGames ? "Show Normal View" : "Show All Games"}
+            </Button>
+          )}
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {games.map((game) => (
+          {filteredGames.map((game) => (
             <div
               key={game.id}
               className="glass-card p-4 space-y-4"
             >
               <h2 className="text-2xl font-bold">{game.name}</h2>
-              <p>Created by: {game.created_by?.username || "Unkno"}</p>
+              <p>Created by: {game.created_by?.username || "Unknown"}</p>
               <div className="flex justify-between">
                 <p>Questions: {game.totalQuestions}</p>
                 <p>Categories: {game.categories.length}</p>
@@ -128,6 +173,12 @@ const Games = () => {
                   className="glass-card hover:bg-primary/20"
                 >
                   <MdDelete />
+                </Button>
+                <Button
+                  onClick={() => navigate(`/games/${game.id}`)}
+                  className="glass-card hover:bg-primary/20"
+                >
+                  Play
                 </Button>
               </div>
             </div>

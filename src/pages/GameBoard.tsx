@@ -1,120 +1,199 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { useNavigate } from "react-router-dom";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { useNavigate, useParams } from "react-router-dom";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { supabase } from "@/lib/supabaseClient";
+import { User } from "lucide-react";
 
 interface Question {
   id: number;
   points: number;
-  question: string;
+  question_text: string;
   answer: string;
-  revealed: boolean;
-  image?: string;
+  picture_url?: string;
 }
 
 interface Category {
   id: number;
-  title: string;
+  name: string;
   questions: Question[];
+}
+
+interface Team {
+  id: number;
+  name: string;
+  points: number;
 }
 
 const GameBoard = () => {
   const navigate = useNavigate();
-  const [score, setScore] = useState(0);
+  const { id } = useParams();
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [teams, setTeams] = useState<Team[]>([]);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [newTeamName, setNewTeamName] = useState("");
+  const [currentQuestion, setCurrentQuestion] = useState<Question | null>(null);
+  const [showAnswer, setShowAnswer] = useState(false);
+  const [teamsVisible, setTeamsVisible] = useState(true); // State to manage team visibility
+  const [clickedQuestions, setClickedQuestions] = useState<Set<number>>(new Set()); // State to track clicked questions
 
-  // Mock data - replace with Firebase data
-  const [categories] = useState<Category[]>([
-    {
-      id: 1,
-      title: "Science",
-      questions: [
-        { id: 1, points: 100, question: "What is H2O?", answer: "Water", revealed: false, image: "https://images.unsplash.com/photo-1514002053755-13baeb4d8ad9" },
-        { id: 2, points: 200, question: "What is the closest planet to the Sun?", answer: "Mercury", revealed: false },
-        { id: 3, points: 300, question: "What is the hardest natural substance?", answer: "Diamond", revealed: false },
-        { id: 4, points: 400, question: "What is the largest organ in the human body?", answer: "Skin", revealed: false },
-        { id: 5, points: 500, question: "What is absolute zero in Celsius?", answer: "-273.15°C", revealed: false },
-      ],
-    },
-  ]);
+  useEffect(() => {
+    const fetchGameDetails = async () => {
+      const { data: game, error: gameError } = await supabase
+        .from('jeopardy_games')
+        .select(`
+          id,
+          name,
+          categories (
+            id,
+            name,
+            questions (
+              id,
+              points,
+              question_text,
+              answer,
+              picture_url
+            )
+          )
+        `)
+        .eq('id', id)
+        .single();
 
-  const [selectedQuestion, setSelectedQuestion] = useState<Question | null>(null);
+      if (gameError) {
+        console.error(gameError);
+        return;
+      }
+
+      setCategories(game.categories);
+    };
+
+    fetchGameDetails();
+  }, [id]);
 
   const handleQuestionClick = (question: Question) => {
-    if (!question.revealed) {
-      setSelectedQuestion(question);
+    setCurrentQuestion(question);
+    setShowAnswer(false);
+    setIsModalOpen(true);
+    setClickedQuestions((prev) => new Set(prev).add(question.id)); // Mark question as clicked
+  };
+
+  const addTeam = () => {
+    if (newTeamName.trim() !== "") {
+      setTeams([...teams, { id: teams.length + 1, name: newTeamName, points: 0 }]);
+      setNewTeamName("");
+      setIsModalOpen(false);
     }
   };
 
-  const handleAnswerReveal = () => {
-    if (selectedQuestion) {
-      const points = selectedQuestion.points;
-      setScore(score + points);
-      setSelectedQuestion(null);
-    }
+  const updateTeamPoints = (teamId: number, delta: number) => {
+    setTeams(teams.map(team => team.id === teamId ? { ...team, points: team.points + delta } : team));
   };
 
   return (
-    <div className="min-h-screen p-4 lg:p-8">
-      <div className="max-w-7xl mx-auto space-y-8 animate-fade-in">
-        <div className="flex justify-between items-center">
-          <Button
-            onClick={() => navigate("/games")}
-            className="glass-card hover:bg-primary/20"
-          >
+    <div className="min-h-screen p-4 lg:p-8" style={{ height: '100vh', width: '100vw', overflow: 'hidden' }}>
+      <div className="max-w-7xl mx-auto space-y-8 animate-fade-in" style={{ height: '100%', width: '100%' }}>
+        <div className="absolute top-4 left-4">
+          <Button onClick={() => navigate("/games")} className="glass-card hover:bg-primary/20">
             Exit Game
           </Button>
-          <div className="text-2xl font-bold">Score: {score}</div>
         </div>
 
-        <div className="game-grid">
+        <div className="game-grid" style={{ height: 'calc(100% - 4rem)', width: '100%' }}>
           {categories.map((category) => (
             <div key={category.id} className="space-y-4">
-              <div className="category-header">{category.title}</div>
+              <div className="category-header">{category.name}</div>
               {category.questions.map((question) => (
                 <div
                   key={question.id}
-                  className={`question-card ${
-                    question.revealed ? "bg-primary/10" : ""
-                  }`}
+                  className={`question-card ${clickedQuestions.has(question.id) ? "bg-gray-700" : ""}`}
                   onClick={() => handleQuestionClick(question)}
                 >
-                  {question.revealed ? "" : `$${question.points}`}
+                  {question.points}
                 </div>
               ))}
             </div>
           ))}
         </div>
 
-        {selectedQuestion && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-            <div className="glass-card max-w-2xl w-full p-8 space-y-6 animate-slide-up">
-              <h3 className="text-2xl font-bold text-center">
-                ${selectedQuestion.points}
-              </h3>
-              <p className="text-xl text-center">{selectedQuestion.question}</p>
-              <div className="flex flex-col items-center gap-4">
-                <Button
-                  onClick={() => setSelectedQuestion(null)}
-                  className="glass-card hover:bg-primary/20"
-                >
-                  Close
-                </Button>
-                <Button
-                  onClick={handleAnswerReveal}
-                  className="glass-card hover:bg-primary/20"
-                >
-                  Show Answer
-                </Button>
-                {selectedQuestion.image && (
-                  <img 
-                    src={selectedQuestion.image} 
-                    alt="Question visual" 
-                    className="max-w-full h-auto rounded-lg mt-4"
-                  />
-                )}
+        <div className="fixed bottom-4 right-4 flex gap-4">
+          <Button onClick={() => setIsModalOpen(true)} className="glass-card hover:bg-primary/20">
+            +
+          </Button>
+          {teams.length > 0 && (
+            <Button onClick={() => setTeamsVisible(!teamsVisible)} className="glass-card hover:bg-primary/20">
+              <User />
+            </Button>
+          )}
+        </div>
+
+        {teamsVisible && (
+          <div className="fixed bottom-4 left-4 flex gap-4">
+            {teams.map((team) => (
+              <div key={team.id} className="glass-card p-4 flex flex-col items-center">
+                <div className="text-xl font-bold">{team.name}</div>
+                <div className="text-lg">{team.points} points</div>
+                <div className="flex gap-2 mt-2">
+                  <Button onClick={() => updateTeamPoints(team.id, 100)} className="glass-card hover:bg-primary/20">
+                    +
+                  </Button>
+                  <Button onClick={() => updateTeamPoints(team.id, -100)} className="glass-card hover:bg-primary/20">
+                    -
+                  </Button>
+                </div>
               </div>
-            </div>
+            ))}
           </div>
+        )}
+
+        {isModalOpen && currentQuestion && (
+          <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>{showAnswer ? "Answer" : "Question"}</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div>{showAnswer ? currentQuestion.answer : currentQuestion.question_text}</div>
+                {!showAnswer && currentQuestion.picture_url && (
+                  <img src={currentQuestion.picture_url} alt="Question" className="w-full h-auto" />
+                )}
+                <div className="flex justify-end gap-4">
+                  <Button onClick={() => setIsModalOpen(false)} className="glass-card hover:bg-primary/20">
+                    Close
+                  </Button>
+                  <Button onClick={() => setShowAnswer(!showAnswer)} className="glass-card hover:bg-primary/20">
+                    {showAnswer ? "Show Question" : "Show Answer"}
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
+
+        {isModalOpen && !currentQuestion && (
+          <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Add New Team</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <Input
+                  value={newTeamName}
+                  onChange={(e) => setNewTeamName(e.target.value)}
+                  placeholder="Team Name"
+                  className="flex-1"
+                />
+                <div className="flex justify-end gap-4">
+                  <Button onClick={() => setIsModalOpen(false)} className="glass-card hover:bg-primary/20">
+                    Cancel
+                  </Button>
+                  <Button onClick={addTeam} className="glass-card hover:bg-primary/20">
+                    Add
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
         )}
       </div>
     </div>
