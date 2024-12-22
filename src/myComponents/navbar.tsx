@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useUser } from "@/context/UserContext";
 
@@ -41,50 +41,49 @@ export default function Navbar() {
   };
 
   return (
-    <>
-      {user && (
-        <div className="flex justify-between p-2 w-full">
-          {user.role === 'admin' && (
+    <div className="flex justify-between items-center p-4 w-full">
+      <div className="flex gap-4">
+        {user && user.role === 'admin' && (
+          <Button
+            onClick={() => navigate("/admin")}
+            className="glass-card hover:bg-primary/20 text-xl px-8 py-6 transform hover:scale-105 transition-all duration-300"
+          >
+            Admin
+          </Button>
+        )}
+      </div>
+      <div className="flex-1 flex justify-center">
+        {user ? (
+          <div className="text-3xl font-bold tracking-tight bg-gradient-to-r from-white to-indigo-400 bg-clip-text text-transparent animate-in">
+            Welcome back, {user.username}!
+          </div>
+        ) : (
+          <div className="flex gap-4">
             <Button
-              onClick={() => navigate("/admin")}
+              onClick={() => navigate("/login")}
               className="glass-card hover:bg-primary/20 text-xl px-8 py-6 transform hover:scale-105 transition-all duration-300"
             >
-              Admin
+              Login
             </Button>
-          )}
+            <Button
+              onClick={() => navigate("/register")}
+              className="glass-card hover:bg-primary/20 text-xl px-8 py-6 transform hover:scale-105 transition-all duration-300"
+            >
+              Register
+            </Button>
+          </div>
+        )}
+      </div>
+      <div className="flex gap-4">
+        {user && (
           <Button
             onClick={handleLogout}
             className="glass-card hover:bg-primary/20 text-xl px-8 py-6 transform hover:scale-105 transition-all duration-300"
           >
             Logout
           </Button>
-        </div>
-      )}
-
-      <div className="relative flex justify-between items-center py-1 px-4">
-        <div className="flex gap-6">
-          {user ? (
-            <div className="text-xl px-8 py-6">
-              Hello, {user.username}
-            </div>
-          ) : (
-            <>
-              <Button
-                onClick={() => navigate("/login")}
-                className="glass-card hover:bg-primary/20 text-xl px-8 py-6 transform hover:scale-105 transition-all duration-300"
-              >
-                Login
-              </Button>
-              <Button
-                onClick={() => navigate("/register")}
-                className="glass-card hover:bg-primary/20 text-xl px-8 py-6 transform hover:scale-105 transition-all duration-300"
-              >
-                Register
-              </Button>
-            </>
-          )}
-        </div>
+        )}
       </div>
-    </>
+    </div>
   );
 }

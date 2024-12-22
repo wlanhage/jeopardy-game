@@ -64,18 +64,28 @@ const EditGame = () => {
   }, [id]);
 
   const addCategory = async () => {
+
+    if (categories.length >= 10) {
+      toast.error("A game can have a maximum of 10 categories");
+      return;
+    }
+
     const { data: category, error } = await supabase
       .from('categories')
       .insert([{ name: "New Category", game_id: id }])
+      .select()
       .single();
-
+  
     if (error) {
       console.error(error);
       return;
     }
-
+  
     if (category) {
-      setCategories([...categories, { ...category, questions: [] }]);
+      setCategories(prevCategories => [
+        ...prevCategories,
+        { ...category, questions: [] }
+      ]);
     }
   };
 

@@ -51,6 +51,7 @@ const Admin = () => {
           id,
           name,
           created_by,
+          view,
           categories (
             id,
             questions!category_id (
@@ -127,14 +128,14 @@ const Admin = () => {
       .from('jeopardy_games')
       .update({ view: newView })
       .eq('id', gameId);
-
+  
     if (error) {
       console.error(error);
-      toast.error(`Failed to update role for user ${gameId}`);
+      toast.error(`Failed to update view for game ${gameId}`);
     } else {
-      const updatedGameView = users.find(user => user.id === userId);
-      setUsers(users.map(user => user.id === userId ? { ...user, role: newRole } : user));
-      toast.success(`Updated role for user ${updatedUser?.username} to ${newRole}`);
+      setGames(games.map(game => game.id === gameId ? { ...game, view: newView } : game));
+      const updatedGame = games.find(game => game.id === gameId);
+      toast.success(`Updated view for game ${updatedGame.name}`);
     }
   };
 
@@ -182,9 +183,9 @@ const Admin = () => {
     <div className="min-h-screen p-8">
       <div className="max-w-6xl mx-auto space-y-12 animate-fade-in">
         <div>
-        <div className="flex">
+        <div className="flex justify-between">
           <h2 className="text-3xl font-bold mb-6">User Management</h2>
-          <Button className="glass-card hover:bg-primary/20 flex-1" 
+          <Button className="glass-card hover:bg-primary/20" 
           onClick={() => navigate("/")}>Home</Button>
           </div>
           <div className="glass-card">
@@ -242,15 +243,15 @@ const Admin = () => {
                     <TableCell>{game.created_by?.username || "Unkno"}</TableCell>
                     <TableCell>
                       <Select
-                        defaultValue={game.status}
-                        onValueChange={(value) => handleGameStatusChange(game.id, value)}
+                        value={game.view ? "true" : "false"}
+                        onValueChange={(value) => handleGameViewChange(game.id, value === "true")}
                       >
                         <SelectTrigger className="w-32">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="active">Active</SelectItem>
-                          <SelectItem value="inactive">Inactive</SelectItem>
+                          <SelectItem value="true">Public</SelectItem>
+                          <SelectItem value="false">Private</SelectItem>
                         </SelectContent>
                       </Select>
                     </TableCell>

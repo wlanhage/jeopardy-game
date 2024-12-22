@@ -85,6 +85,31 @@ const Games = () => {
   }, []);
 
   const deleteGame = async (gameId) => {
+    const { data: game, error: gameError } = await supabase
+      .from('jeopardy_games')
+      .select('created_by')
+      .eq('id', gameId)
+      .single();
+
+    if (gameError) {
+      console.error("Error fetching game details:", gameError);
+      toast({
+        title: "Error",
+        description: "The delete had an error, try again",
+        variant: "default",
+      });
+      return;
+    }
+
+    if (game.created_by !== user.id) {
+      toast({
+        title: "Game not deleted",
+        description: "You can only delete your own games! This game is created by another user!",
+        variant: "default",
+      });
+      return;
+    }
+
     const { error } = await supabase
       .from('jeopardy_games')
       .delete()
@@ -92,6 +117,11 @@ const Games = () => {
 
     if (error) {
       console.error("Error deleting game:", error);
+      toast({
+        title: "Error",
+        description: "The delete had an error, try again",
+        variant: "default",
+      });
     } else {
       setGames(games.filter(game => game.id !== gameId));
       setIsModalOpen(false);

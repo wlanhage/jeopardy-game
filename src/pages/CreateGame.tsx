@@ -36,6 +36,11 @@ const CreateGame = () => {
   }, []);
 
   const addCategory = () => {
+    if (categories.length >= 10) {
+      toast.error("A game can have a maximum of 10 categories");
+      return;
+    }
+
     setCategories([...categories, ""]);
   };
 

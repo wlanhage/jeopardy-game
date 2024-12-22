@@ -5,6 +5,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/lib/supabaseClient";
 import { User } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
+import { Textfit } from 'react-textfit'
 
 interface Question {
   id: number;
@@ -35,8 +37,8 @@ const GameBoard = () => {
   const [newTeamName, setNewTeamName] = useState("");
   const [currentQuestion, setCurrentQuestion] = useState<Question | null>(null);
   const [showAnswer, setShowAnswer] = useState(false);
-  const [teamsVisible, setTeamsVisible] = useState(true); // State to manage team visibility
-  const [clickedQuestions, setClickedQuestions] = useState<Set<number>>(new Set()); // State to track clicked questions
+  const [teamsVisible, setTeamsVisible] = useState(true); 
+  const [clickedQuestions, setClickedQuestions] = useState<Set<number>>(new Set()); 
 
   useEffect(() => {
     const fetchGameDetails = async () => {
@@ -91,18 +93,22 @@ const GameBoard = () => {
   };
 
   return (
-    <div className="min-h-screen p-4 lg:p-8" style={{ height: '100vh', width: '100vw', overflow: 'hidden' }}>
-      <div className="max-w-7xl mx-auto space-y-8 animate-fade-in" style={{ height: '100%', width: '100%' }}>
-        <div className="absolute top-4 left-4">
+    <div className="min-h-screen lg:p-8" style={{ height: '100vh', width: '100vw', overflow: 'hidden' }}>
+      <div className="space-y-8 animate-fade-in" style={{ height: '100%', width: '100%' }}>
+        <div className="fixed top-4 left-4">
           <Button onClick={() => navigate("/games")} className="glass-card hover:bg-primary/20">
-            Exit Game
+            <ArrowLeft />
           </Button>
         </div>
 
-        <div className="game-grid" style={{ height: 'calc(100% - 4rem)', width: '100%' }}>
+        <div className="game-grid">
           {categories.map((category) => (
             <div key={category.id} className="space-y-4">
-              <div className="category-header">{category.name}</div>
+              <div className="category-header">
+                <Textfit mode="single" max={24} min={8}>
+                  {category.name}
+                </Textfit>
+              </div>
               {category.questions.map((question) => (
                 <div
                   key={question.id}
@@ -155,7 +161,9 @@ const GameBoard = () => {
               <div className="space-y-4">
                 <div>{showAnswer ? currentQuestion.answer : currentQuestion.question_text}</div>
                 {!showAnswer && currentQuestion.picture_url && (
-                  <img src={currentQuestion.picture_url} alt="Question" className="w-full h-auto" />
+                  <div className="image-container">
+                    <img src={currentQuestion.picture_url} alt="Question" className="max-w-80 max-h-96" />
+                  </div>
                 )}
                 <div className="flex justify-end gap-4">
                   <Button onClick={() => setIsModalOpen(false)} className="glass-card hover:bg-primary/20">
