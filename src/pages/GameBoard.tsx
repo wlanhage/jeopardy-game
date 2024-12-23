@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { supabase } from "@/lib/supabaseClient";
 import { User } from "lucide-react";
 import { ArrowLeft } from "lucide-react";
-import { Textfit } from 'react-textfit'
+
 
 interface Question {
   id: number;
@@ -105,9 +105,9 @@ const GameBoard = () => {
           {categories.map((category) => (
             <div key={category.id} className="space-y-4">
               <div className="category-header">
-                <Textfit mode="single" max={24} min={8}>
+                
                   {category.name}
-                </Textfit>
+                
               </div>
               {category.questions.map((question) => (
                 <div
