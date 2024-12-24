@@ -106,7 +106,7 @@ const GameBoard = () => {
             <div key={category.id} className="space-y-4">
               <div className="category-header">
                 
-                  {category.name}
+                  <h3 className="text-xl">{category.name}</h3>
                 
               </div>
               {category.questions.map((question) => (
